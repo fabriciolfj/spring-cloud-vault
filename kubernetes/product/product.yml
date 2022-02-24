@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: products
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: products
+  template:
+    metadata:
+      labels:
+        app: products
+    spec:
+      serviceAccountName: internal-app
+      containers:
+        - name: products
+          image: fabricio211/product:1.101.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              memory: 1000Mi
+              cpu: "300m"
+            requests:
+              memory: 1000Mi
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /actuator/info
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 40
+            timeoutSeconds: 2
+            failureThreshold: 30
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+            successThreshold: 1
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: products
+spec:
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: products
